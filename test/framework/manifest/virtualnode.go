@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"fmt"
+
 	appmesh "github.com/aws/aws-app-mesh-controller-for-k8s/apis/appmesh/v1beta2"
 	"github.com/aws/aws-sdk-go/aws"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,6 +62,19 @@ func (b *VNBuilder) BuildVirtualNode(instanceName string, backendVirtualServices
 			ServiceDiscovery: sd,
 			Backends:         backends,
 			BackendDefaults:  backendDefaults,
+		},
+	}
+	return vn
+}
+
+func (b *VNBuilder) BuildWithVirtualNodeWithLabels(vnName string, labels map[string]string) *appmesh.VirtualNode {
+	vn := &appmesh.VirtualNode{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: b.Namespace,
+			Name:      vnName,
+		},
+		Spec: appmesh.VirtualNodeSpec{
+			PodSelector: &metav1.LabelSelector{MatchLabels: labels},
 		},
 	}
 	return vn

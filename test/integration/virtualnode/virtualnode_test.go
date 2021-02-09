@@ -3,11 +3,13 @@ package virtualnode_test
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/servicediscovery"
 	appsv1 "k8s.io/api/apps/v1"
-	"sync"
-	"time"
+	v1 "k8s.io/api/core/v1"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -139,6 +141,29 @@ var _ = Describe("VirtualNode", func() {
 
 			})
 
+			meshWithExistingNS := &appmesh.Mesh{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "meshwithexistingns",
+				},
+				Spec: appmesh.MeshSpec{
+					NamespaceSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"mesh": meshName,
+						},
+					},
+				},
+			}
+
+			By("creating a mesh with matching existing NS", func() {
+				err := meshTest.Create(ctx, f, meshWithExistingNS)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			By("Creating a virtual node resource in k8s when multiple mesh matches same NS", func() {
+				err := vnTest.Create(ctx, f, vn)
+				Expect(err).To(HaveOccurred())
+			})
+
 			By("Set incorrect labels on namespace", func() {
 				oldNS := vnTest.Namespace.DeepCopy()
 				vnTest.Namespace.Labels = algorithm.MergeStringMap(map[string]string{
@@ -156,6 +181,25 @@ var _ = Describe("VirtualNode", func() {
 			By("Creating a virtual node resource in k8s when no mesh matches namespace", func() {
 				err := vnTest.Create(ctx, f, vn)
 				Expect(err).To(HaveOccurred())
+			})
+
+			meshWithWildcardNS := &appmesh.Mesh{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "wildcardmesh",
+				},
+				Spec: appmesh.MeshSpec{
+					NamespaceSelector: &metav1.LabelSelector{},
+				},
+			}
+
+			By("creating a mesh with wildcardNS selector in k8s", func() {
+				err := meshTest.Create(ctx, f, meshWithWildcardNS)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			By("Recreate a virtual node resource in k8s when there is a mesh with wildcard NS", func() {
+				err := vnTest.Create(ctx, f, vn)
+				Expect(err).NotTo(HaveOccurred())
 			})
 
 		})
@@ -983,6 +1027,91 @@ var _ = Describe("VirtualNode", func() {
 				err = vnTest.CheckInAWS(ctx, f, mesh, vnTest.VirtualNodes[vn.Name])
 				Expect(err).NotTo(HaveOccurred())
 			})
+		})
+
+		FIt("Validate Pod creation for a given virtual node", func() {
+
+			meshName := fmt.Sprintf("%s-%s", f.Options.ClusterName, utils.RandomDNS1123Label(6))
+			mesh := &appmesh.Mesh{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: meshName,
+				},
+				Spec: appmesh.MeshSpec{
+					NamespaceSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"mesh": meshName,
+						},
+					},
+				},
+			}
+
+			By("creating a mesh resource in k8s", func() {
+				err := meshTest.Create(ctx, f, mesh)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			By("Create a namespace and add labels", func() {
+				namespace, err := f.NSManager.AllocateNamespace(ctx, "appmeshtest")
+				Expect(err).NotTo(HaveOccurred())
+				vnBuilder.Namespace = namespace.Name
+				vnTest.Namespace = namespace
+
+				oldNS := namespace.DeepCopy()
+				namespace.Labels = algorithm.MergeStringMap(map[string]string{
+					"appmesh.k8s.aws/sidecarInjectorWebhook": "enabled",
+					"mesh":                                   meshName,
+				}, namespace.Labels)
+
+				err = f.K8sClient.Patch(ctx, namespace, client.MergeFrom(oldNS))
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			labels := make(map[string]string)
+			labels["app"] = "front"
+			pod := &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "pod1",
+					Namespace: vnBuilder.Namespace,
+					Labels:    labels,
+				},
+				Spec: v1.PodSpec{
+					NodeName: "testnode",
+				},
+			}
+
+			// pod2 := &v1.Pod{
+			// 	ObjectMeta: metav1.ObjectMeta{
+			// 		Name:      "pod2",
+			// 		Namespace: "testnamespace",
+			// 		Labels:    labels,
+			// 	},
+			// 	Spec: v1.PodSpec{
+			// 		NodeName: "testnode",
+			// 		Containers: {
+			// 			Name: "colorapp",
+			// 		},
+			// 	},
+			// }
+
+			vnName1 := fmt.Sprintf("vn-%s", utils.RandomDNS1123Label(8))
+			vn1 := vnBuilder.BuildWithVirtualNodeWithLabels(vnName1, labels)
+
+			vnName2 := fmt.Sprintf("vn-%s", utils.RandomDNS1123Label(8))
+			vn2 := vnBuilder.BuildWithVirtualNodeWithLabels(vnName2, labels)
+
+			By("Creating multiple virtual nodes with same pod selector", func() {
+				err := vnTest.Create(ctx, f, vn1)
+				Expect(err).NotTo(HaveOccurred())
+
+				err = vnTest.Create(ctx, f, vn2)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			By("Validate pod creation should fail when multiple virtual nodes have same pod selector", func() {
+				err := f.K8sClient.Create(ctx, pod)
+				Expect(err).To(HaveOccurred())
+			})
+
 		})
 	})
 })
