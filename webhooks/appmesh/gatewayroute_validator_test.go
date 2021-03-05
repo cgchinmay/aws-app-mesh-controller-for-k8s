@@ -55,6 +55,17 @@ func Test_gatewayRouteValidator_checkIfHostnameOrPrefixFieldExists(t *testing.T)
 			},
 			wantErr: errors.New("Either servicename or hostname must be specified"),
 		},
+		{
+			name: "HTTPGateway Route with Missing Prefix and Hostname",
+			currGR: &appmesh.GatewayRoute{
+				Spec: appmesh.GatewayRouteSpec{
+					HTTPRoute: &appmesh.HTTPGatewayRoute{
+						Match: appmesh.HTTPGatewayRouteMatch{},
+					},
+				},
+			},
+			wantErr: errors.New("Either prefix or hostname must be specified"),
+		},
 	}
 
 	for _, tt := range tests {
