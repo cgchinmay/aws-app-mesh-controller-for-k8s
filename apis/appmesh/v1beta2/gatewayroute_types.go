@@ -39,9 +39,18 @@ type GatewayRouteTarget struct {
 
 // GRPCGatewayRouteMatch refers to https://docs.aws.amazon.com/app-mesh/latest/userguide/virtual_gateways.html
 type GRPCGatewayRouteMatch struct {
+	// Either ServiceName or Hostname must be speicified. Both are allowed as well
 	// The fully qualified domain name for the service to match from the request.
 	// +optional
 	ServiceName *string `json:"serviceName,omitempty"`
+	// The client specified Hostname to match on.
+	// +optional
+	Hostname Hostname
+	// An object that represents the data to match from the request.
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=10
+	// +optional
+	Metadata []GRPCRouteMetadata `json:"metadata,omitempty"`
 }
 
 // GRPCGatewayRouteAction refers to https://docs.aws.amazon.com/app-mesh/latest/userguide/virtual_gateways.html
@@ -60,8 +69,32 @@ type GRPCGatewayRoute struct {
 
 // HTTPGatewayRouteMatch refers to https://docs.aws.amazon.com/app-mesh/latest/userguide/virtual_gateways.html
 type HTTPGatewayRouteMatch struct {
+	// Either Prefix or Hostname must be specified. Both are allowed as well.
 	// Specifies the path to match requests with
+	// +optional
 	Prefix *string `json:"prefix"`
+	// The client specified Hostname to match on.
+	// +optional
+	Hostname Hostname
+	// The client request method to match on.
+	// +kubebuilder:validation:Enum=CONNECT;DELETE;GET;HEAD;OPTIONS;PATCH;POST;PUT;TRACE
+	// +optional
+	Method *string `json:"method,omitempty"`
+	// An object that represents the client request headers to match on.
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=10
+	// +optional
+	Headers []HTTPRouteHeader `json:"headers,omitempty"`
+}
+
+// Hostname based match, either Exact or Suffix must be specified. Both are not allowed
+type Hostname struct {
+	// The value sent by the client must match the specified value exactly.
+	// +optional
+	Exact *string `json:"exact,omitempty"`
+	// The value sent by the client must end with the specified characters.
+	// +optional
+	Suffix *string `json:"suffix,omitempty"`
 }
 
 // HTTPGatewayRouteAction refers to https://docs.aws.amazon.com/app-mesh/latest/userguide/virtual_gateways.html
@@ -85,6 +118,10 @@ type GatewayRouteSpec struct {
 	// If unspecified or empty, it defaults to be "${name}_${namespace}" of k8s GatewayRoute
 	// +optional
 	AWSName *string `json:"awsName,omitempty"`
+	// Priority for specified route
+	// +kubebuilder:validation:MinLength=0
+	// +kubebuilder:validation:MaxLength=1000
+	Priority int32
 	// An object that represents the specification of a gRPC gatewayRoute.
 	// +optional
 	GRPCRoute *GRPCGatewayRoute `json:"grpcRoute,omitempty"`

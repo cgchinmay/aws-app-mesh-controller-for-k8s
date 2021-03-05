@@ -41,56 +41,6 @@ type WeightedTarget struct {
 	Weight int64 `json:"weight"`
 }
 
-type MatchRange struct {
-	// The start of the range.
-	// +optional
-	Start int64 `json:"start"`
-	// The end of the range.
-	// +optional
-	End int64 `json:"end"`
-}
-
-// HeaderMatchMethod refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_HeaderMatchMethod.html
-type HeaderMatchMethod struct {
-	// The value sent by the client must match the specified value exactly.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=255
-	// +optional
-	Exact *string `json:"exact,omitempty"`
-	// The value sent by the client must begin with the specified characters.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=255
-	// +optional
-	Prefix *string `json:"prefix,omitempty"`
-	// An object that represents the range of values to match on.
-	// +optional
-	Range *MatchRange `json:"range,omitempty"`
-	// The value sent by the client must include the specified characters.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=255
-	// +optional
-	Regex *string `json:"regex,omitempty"`
-	// The value sent by the client must end with the specified characters.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=255
-	// +optional
-	Suffix *string `json:"suffix,omitempty"`
-}
-
-// HTTPRouteHeader refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_HttpRouteHeader.html
-type HTTPRouteHeader struct {
-	// A name for the HTTP header in the client request that will be matched on.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=50
-	Name string `json:"name"`
-	// The HeaderMatchMethod object.
-	// +optional
-	Match *HeaderMatchMethod `json:"match,omitempty"`
-	// Specify True to match anything except the match criteria. The default value is False.
-	// +optional
-	Invert *bool `json:"invert,omitempty"`
-}
-
 // HTTPRouteMatch refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_HttpRouteMatch.html
 type HTTPRouteMatch struct {
 	// An object that represents the client request headers to match on.
@@ -173,47 +123,6 @@ type TCPRoute struct {
 	// An object that represents a tcp timeout.
 	// +optional
 	Timeout *TCPTimeout `json:"timeout,omitempty"`
-}
-
-// GRPCRouteMetadataMatchMethod refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_GrpcRouteMetadataMatchMethod.html
-type GRPCRouteMetadataMatchMethod struct {
-	// The value sent by the client must match the specified value exactly.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=255
-	// +optional
-	Exact *string `json:"exact,omitempty"`
-	// The value sent by the client must begin with the specified characters.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=255
-	// +optional
-	Prefix *string `json:"prefix,omitempty"`
-	// An object that represents the range of values to match on
-	// +optional
-	Range *MatchRange `json:"range,omitempty"`
-	// The value sent by the client must include the specified characters.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=255
-	// +optional
-	Regex *string `json:"regex,omitempty"`
-	// The value sent by the client must end with the specified characters.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=255
-	// +optional
-	Suffix *string `json:"suffix,omitempty"`
-}
-
-// GRPCRouteMetadata refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_GrpcRouteMetadata.html
-type GRPCRouteMetadata struct {
-	// The name of the route.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=50
-	Name string `json:"name"`
-	// An object that represents the data to match from the request.
-	// +optional
-	Match *GRPCRouteMetadataMatchMethod `json:"match,omitempty"`
-	// Specify True to match anything except the match criteria. The default value is False.
-	// +optional
-	Invert *bool `json:"invert,omitempty"`
 }
 
 // GRPCRouteMatch refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_GrpcRouteMatch.html

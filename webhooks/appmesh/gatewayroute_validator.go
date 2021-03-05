@@ -2,14 +2,15 @@ package appmesh
 
 import (
 	"context"
+	"reflect"
+	"strings"
+
 	appmesh "github.com/aws/aws-app-mesh-controller-for-k8s/apis/appmesh/v1beta2"
 	"github.com/aws/aws-app-mesh-controller-for-k8s/pkg/webhook"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	"strings"
 )
 
 const apiPathValidateAppMeshGatewayRoute = "/validate-appmesh-k8s-aws-v1beta2-gatewayroute"
@@ -29,6 +30,10 @@ func (v *gatewayRouteValidator) Prototype(req admission.Request) (runtime.Object
 }
 
 func (v *gatewayRouteValidator) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+	currGR := obj.(*appmesh.GatewayRoute)
+	if err := v.checkIfHostnameOrPrefixFieldExists(currGR); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -42,6 +47,47 @@ func (v *gatewayRouteValidator) ValidateUpdate(ctx context.Context, obj runtime.
 }
 
 func (v *gatewayRouteValidator) ValidateDelete(ctx context.Context, obj runtime.Object) error {
+	return nil
+}
+
+func (v *gatewayRouteValidator) checkIfHostnameOrPrefixFieldExists(currGR *appmesh.GatewayRoute) error {
+	spec := currGR.Spec
+	if spec.GRPCRoute == nil && spec.HTTP2Route == nil && spec.HTTPRoute == nil {
+		return errors.Errorf("No matching route specified")
+	}
+	if spec.GRPCRoute != nil {
+		servicename := spec.GRPCRoute.Match.ServiceName
+		hostname := spec.GRPCRoute.Match.Hostname
+		if servicename == nil && hostname == (appmesh.Hostname{}) {
+			return errors.Errorf("Either servicename or hostname must be specified")
+		}
+	}
+	if spec.HTTP2Route != nil {
+		prefix := spec.HTTP2Route.Match.Prefix
+		hostname := spec.HTTP2Route.Match.Hostname
+		return validatePrefixAndHostName(prefix, hostname)
+	}
+	prefix := spec.HTTPRoute.Match.Prefix
+	hostname := spec.HTTPRoute.Match.Hostname
+	return validatePrefixAndHostName(prefix, hostname)
+}
+
+func validatePrefixAndHostName(prefix *string, hostname appmesh.Hostname) error {
+	if prefix == nil && hostname == (appmesh.Hostname{}) {
+		return errors.Errorf("Either prefix or hostname must be specified")
+	}
+	// Validate Hostname
+	if prefix == nil {
+		exact := hostname.Exact
+		suffix := hostname.Suffix
+		if exact == nil && suffix == nil {
+			return errors.Errorf("Either exact or suffix match for hostname must be specified")
+		}
+		if exact != nil && suffix != nil {
+			return errors.Errorf("Both exact and suffix match for hostname are not allowed. Only one must be specified")
+		}
+	}
+	// TODO: Validation checks for prefix
 	return nil
 }
 
