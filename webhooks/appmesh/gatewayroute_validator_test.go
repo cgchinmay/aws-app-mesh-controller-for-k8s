@@ -1,13 +1,74 @@
 package appmesh
 
 import (
+	"testing"
+
 	appmesh "github.com/aws/aws-app-mesh-controller-for-k8s/apis/appmesh/v1beta2"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
+
+func Test_gatewayRouteValidator_checkIfHostnameOrPrefixFieldExists(t *testing.T) {
+	tests := []struct {
+		name    string
+		currGR  *appmesh.GatewayRoute
+		wantErr error
+	}{
+		{
+			name: "GRPCGateway Route SevericName specified",
+			currGR: &appmesh.GatewayRoute{
+				Spec: appmesh.GatewayRouteSpec{
+					GRPCRoute: &appmesh.GRPCGatewayRoute{
+						Match: appmesh.GRPCGatewayRouteMatch{
+							ServiceName: aws.String("my-service"),
+						},
+					},
+				},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "GRPCGateway Route with Valid Hostname specified",
+			currGR: &appmesh.GatewayRoute{
+				Spec: appmesh.GatewayRouteSpec{
+					GRPCRoute: &appmesh.GRPCGatewayRoute{
+						Match: appmesh.GRPCGatewayRouteMatch{
+							Hostname: appmesh.Hostname{
+								Exact: aws.String("example.com"),
+							},
+						},
+					},
+				},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "GRPCGateway Route with Missing Servicename and Hostname",
+			currGR: &appmesh.GatewayRoute{
+				Spec: appmesh.GatewayRouteSpec{
+					GRPCRoute: &appmesh.GRPCGatewayRoute{
+						Match: appmesh.GRPCGatewayRouteMatch{},
+					},
+				},
+			},
+			wantErr: errors.New("Either servicename or hostname must be specified"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := &gatewayRouteValidator{}
+			err := v.checkIfHostnameOrPrefixFieldExists(tt.currGR)
+			if tt.wantErr != nil {
+				assert.EqualError(t, err, tt.wantErr.Error())
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
 
 func Test_gatewayRouteValidator_enforceFieldsImmutability(t *testing.T) {
 	type args struct {

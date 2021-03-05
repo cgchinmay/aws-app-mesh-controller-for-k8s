@@ -61,6 +61,7 @@ func (v *gatewayRouteValidator) checkIfHostnameOrPrefixFieldExists(currGR *appme
 		if servicename == nil && hostname == (appmesh.Hostname{}) {
 			return errors.Errorf("Either servicename or hostname must be specified")
 		}
+		return nil
 	}
 	if spec.HTTP2Route != nil {
 		prefix := spec.HTTP2Route.Match.Prefix
