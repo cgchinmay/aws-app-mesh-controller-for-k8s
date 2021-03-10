@@ -67,7 +67,77 @@ var _ = Describe("VirtualGateway", func() {
 			meshTest.Cleanup(ctx, f)
 		})
 
-		It("Virtual Gateway Create Scenaries", func() {
+		FIt("GatewayRoute Create Scenarios", func() {
+			meshName := fmt.Sprintf("%s-%s", f.Options.ClusterName, utils.RandomDNS1123Label(6))
+			mesh := &appmesh.Mesh{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: meshName,
+				},
+				Spec: appmesh.MeshSpec{
+					NamespaceSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"mesh": meshName,
+						},
+					},
+				},
+			}
+
+			By("creating a mesh resource in k8s", func() {
+				err := meshTest.Create(ctx, f, mesh)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			By("validating the resources in AWS", func() {
+				err := meshTest.CheckInAWS(ctx, f, mesh)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			By("Create a namespace and add labels", func() {
+				namespace, err := f.NSManager.AllocateNamespace(ctx, "appmeshtest")
+				Expect(err).NotTo(HaveOccurred())
+				vgBuilder.Namespace = namespace.Name
+				vgTest.Namespace = namespace
+
+				oldNS := namespace.DeepCopy()
+				namespace.Labels = algorithm.MergeStringMap(map[string]string{
+					"appmesh.k8s.aws/sidecarInjectorWebhook": "enabled",
+					"mesh":                                   meshName,
+					"gateway":                                "ingress-gw",
+				}, namespace.Labels)
+
+				err = f.K8sClient.Patch(ctx, namespace, client.MergeFrom(oldNS))
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			vgName := fmt.Sprintf("vg-%s", utils.RandomDNS1123Label(8))
+			listeners := []appmesh.VirtualGatewayListener{vgBuilder.BuildVGListener("http", 8080, "/")}
+			nsSelector := map[string]string{"gateway": "ingress-gw"}
+			vg := vgBuilder.BuildVirtualGateway(vgName, listeners, nsSelector)
+
+			By("Creating a virtual gateway resource in k8s", func() {
+				err := vgTest.Create(ctx, f, vg)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			By("validating the virtual gateway in AWS", func() {
+				err := vgTest.CheckInAWS(ctx, f, mesh, vg)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			gatewayRoute := &appmesh.GatewayRoute{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: vgTest.Namespace.Name,
+					Name:      "gatewayroute",
+				},
+			}
+
+			By("Creating a GatewayRoute resource in k8s for same namespace", func() {
+				err := f.K8sClient.Create(ctx, gatewayRoute)
+				Expect(err).NotTo(HaveOccurred())
+			})
+		})
+
+		It("Virtual Gateway Create Scenarios", func() {
 
 			meshName := fmt.Sprintf("%s-%s", f.Options.ClusterName, utils.RandomDNS1123Label(6))
 			mesh := &appmesh.Mesh{
@@ -91,7 +161,6 @@ var _ = Describe("VirtualGateway", func() {
 			By("validating the resources in AWS", func() {
 				err := meshTest.CheckInAWS(ctx, f, mesh)
 				Expect(err).NotTo(HaveOccurred())
-
 			})
 
 			By("Create a namespace and add labels", func() {
@@ -104,6 +173,7 @@ var _ = Describe("VirtualGateway", func() {
 				namespace.Labels = algorithm.MergeStringMap(map[string]string{
 					"appmesh.k8s.aws/sidecarInjectorWebhook": "enabled",
 					"mesh":                                   meshName,
+					"gateway":                                "ingress-gw",
 				}, namespace.Labels)
 
 				err = f.K8sClient.Patch(ctx, namespace, client.MergeFrom(oldNS))
@@ -123,7 +193,31 @@ var _ = Describe("VirtualGateway", func() {
 			By("validating the virtual gateway in AWS", func() {
 				err := vgTest.CheckInAWS(ctx, f, mesh, vg)
 				Expect(err).NotTo(HaveOccurred())
+			})
 
+			vgName2 := fmt.Sprintf("vg-%s", utils.RandomDNS1123Label(8))
+			listeners2 := []appmesh.VirtualGatewayListener{vgBuilder.BuildVGListener("http", 8080, "/test")}
+			vg2 := vgBuilder.BuildVirtualGateway(vgName2, listeners2, nsSelector)
+			By("Creating another virtual gateway resource in k8s for same namespace", func() {
+				err := vgTest.Create(ctx, f, vg2)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			By("Validating the second virtual gateway in AWS", func() {
+				err := vgTest.CheckInAWS(ctx, f, mesh, vg)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			gatewayRoute := &appmesh.GatewayRoute{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: vgTest.Namespace.Name,
+					Name:      "gatewayroute",
+				},
+			}
+
+			By("Creating a GatewayRoute resource in k8s for same namespace", func() {
+				err := f.K8sClient.Create(ctx, gatewayRoute)
+				Expect(err).To(HaveOccurred())
 			})
 
 			By("Create a virtual gateway resource with invalid listener protocol -  it should fail", func() {
@@ -152,11 +246,9 @@ var _ = Describe("VirtualGateway", func() {
 				err := vgTest.Create(ctx, f, vg)
 				Expect(err).To(HaveOccurred())
 			})
-
 		})
 
 		It("Virtual Gateway Update Scenaries", func() {
-
 			meshName := fmt.Sprintf("%s-%s", f.Options.ClusterName, utils.RandomDNS1123Label(6))
 			mesh := &appmesh.Mesh{
 				ObjectMeta: metav1.ObjectMeta{

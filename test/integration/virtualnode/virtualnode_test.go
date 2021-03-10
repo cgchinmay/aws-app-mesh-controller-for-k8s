@@ -1066,11 +1066,21 @@ var _ = Describe("VirtualNode", func() {
 				Expect(err).NotTo(HaveOccurred())
 			})
 
+			emptyLabels := make(map[string]string)
+			vnName := fmt.Sprintf("vn-%s", utils.RandomDNS1123Label(8))
+			vn := vnBuilder.BuildWithVirtualNodeWithLabels(vnName, emptyLabels)
+
+			By("Creating virtual nodes with empty pod selector", func() {
+				err := vnTest.Create(ctx, f, vn)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
 			labels := make(map[string]string)
 			labels["app"] = "front"
-			pod := &v1.Pod{
+
+			testPod := &v1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "pod1",
+					Name:      "testpod",
 					Namespace: vnBuilder.Namespace,
 					Labels:    labels,
 				},
@@ -1079,19 +1089,10 @@ var _ = Describe("VirtualNode", func() {
 				},
 			}
 
-			// pod2 := &v1.Pod{
-			// 	ObjectMeta: metav1.ObjectMeta{
-			// 		Name:      "pod2",
-			// 		Namespace: "testnamespace",
-			// 		Labels:    labels,
-			// 	},
-			// 	Spec: v1.PodSpec{
-			// 		NodeName: "testnode",
-			// 		Containers: {
-			// 			Name: "colorapp",
-			// 		},
-			// 	},
-			// }
+			By("Validate pod creation", func() {
+				err := f.K8sClient.Create(ctx, testPod)
+				Expect(err).NotTo(HaveOccurred())
+			})
 
 			vnName1 := fmt.Sprintf("vn-%s", utils.RandomDNS1123Label(8))
 			vn1 := vnBuilder.BuildWithVirtualNodeWithLabels(vnName1, labels)
@@ -1106,6 +1107,17 @@ var _ = Describe("VirtualNode", func() {
 				err = vnTest.Create(ctx, f, vn2)
 				Expect(err).NotTo(HaveOccurred())
 			})
+
+			pod := &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "pod",
+					Namespace: vnBuilder.Namespace,
+					Labels:    labels,
+				},
+				Spec: v1.PodSpec{
+					NodeName: "testnode",
+				},
+			}
 
 			By("Validate pod creation should fail when multiple virtual nodes have same pod selector", func() {
 				err := f.K8sClient.Create(ctx, pod)
