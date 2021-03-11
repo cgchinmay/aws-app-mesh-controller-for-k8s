@@ -45,7 +45,7 @@ type GRPCGatewayRouteMatch struct {
 	ServiceName *string `json:"serviceName,omitempty"`
 	// The client specified Hostname to match on.
 	// +optional
-	Hostname Hostname
+	Hostname Hostname `json:"hostname"`
 	// An object that represents the data to match from the request.
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=10
@@ -75,7 +75,7 @@ type HTTPGatewayRouteMatch struct {
 	Prefix *string `json:"prefix"`
 	// The client specified Hostname to match on.
 	// +optional
-	Hostname Hostname
+	Hostname Hostname `json:"hostname"`
 	// The client request method to match on.
 	// +kubebuilder:validation:Enum=CONNECT;DELETE;GET;HEAD;OPTIONS;PATCH;POST;PUT;TRACE
 	// +optional

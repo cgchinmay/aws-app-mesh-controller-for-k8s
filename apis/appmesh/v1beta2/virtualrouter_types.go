@@ -58,6 +58,32 @@ type HTTPRouteMatch struct {
 	// +kubebuilder:validation:Enum=http;https
 	// +optional
 	Scheme *string `json:"scheme,omitempty"`
+	// The client specified Path to match on.
+	// +optional
+	Path HTTPPathMatch `json:"match,omitempty"`
+	// The client specified query_parameters to match on
+	// +optional
+	Query_Parameters []HTTPQueryParameters `json:"query_parameters,omitempty"`
+}
+
+type HTTPPathMatch struct {
+	// The value sent by the client must match the specified value exactly.
+	// +optional
+	Exact *string `json:"exact,omitempty"`
+	// The value sent by the client must end with the specified characters.
+	// +optional
+	Regex *string `json:"regex,omitempty"`
+}
+type HTTPQueryParameters struct {
+	Name string `json:"name"`
+	// The HeaderMatchMethod object.
+	// +optional
+	Match *QueryMatchMethod `json:"match,omitempty"`
+}
+
+type QueryMatchMethod struct {
+	// +optional
+	Exact *string `json:"exact,omitempty"`
 }
 
 // HTTPRouteAction refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_HttpRouteAction.html

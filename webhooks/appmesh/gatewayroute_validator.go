@@ -61,13 +61,21 @@ func (v *gatewayRouteValidator) checkIfHostnameOrPrefixFieldExists(currGR *appme
 		if servicename == nil && hostname == (appmesh.Hostname{}) {
 			return errors.Errorf("Either servicename or hostname must be specified")
 		}
+
+		if servicename == nil {
+			return validateHostName(hostname)
+		}
+
+		//TODO : Validation checks for service name
 		return nil
 	}
+
 	if spec.HTTP2Route != nil {
 		prefix := spec.HTTP2Route.Match.Prefix
 		hostname := spec.HTTP2Route.Match.Hostname
 		return validatePrefixAndHostName(prefix, hostname)
 	}
+
 	prefix := spec.HTTPRoute.Match.Prefix
 	hostname := spec.HTTPRoute.Match.Hostname
 	return validatePrefixAndHostName(prefix, hostname)
@@ -79,16 +87,24 @@ func validatePrefixAndHostName(prefix *string, hostname appmesh.Hostname) error 
 	}
 	// Validate Hostname
 	if prefix == nil {
-		exact := hostname.Exact
-		suffix := hostname.Suffix
-		if exact == nil && suffix == nil {
-			return errors.Errorf("Either exact or suffix match for hostname must be specified")
-		}
-		if exact != nil && suffix != nil {
-			return errors.Errorf("Both exact and suffix match for hostname are not allowed. Only one must be specified")
-		}
+		return validateHostName(hostname)
 	}
 	// TODO: Validation checks for prefix
+	return nil
+}
+
+func validateHostName(hostname appmesh.Hostname) error {
+	exact := hostname.Exact
+	suffix := hostname.Suffix
+
+	if exact == nil && suffix == nil {
+		return errors.Errorf("Either exact or suffix match for hostname must be specified")
+	}
+
+	if exact != nil && suffix != nil {
+		return errors.Errorf("Both exact and suffix match for hostname are not allowed. Only one must be specified")
+	}
+
 	return nil
 }
 
