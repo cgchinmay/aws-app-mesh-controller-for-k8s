@@ -179,6 +179,26 @@ type VirtualGatewayReference struct {
 	UID types.UID `json:"uid"`
 }
 
+type HTTPPathMatch struct {
+	// The value sent by the client must match the specified value exactly.
+	// +optional
+	Exact *string `json:"exact,omitempty"`
+	// The value sent by the client must end with the specified characters.
+	// +optional
+	Regex *string `json:"regex,omitempty"`
+}
+type HTTPQueryParameters struct {
+	Name string `json:"name"`
+	// The HeaderMatchMethod object.
+	// +optional
+	Match *QueryMatchMethod `json:"match,omitempty"`
+}
+
+type QueryMatchMethod struct {
+	// +optional
+	Exact *string `json:"exact,omitempty"`
+}
+
 type HTTPTimeout struct {
 	// An object that represents per request timeout duration.
 	// +optional

@@ -57,6 +57,8 @@ type GRPCGatewayRouteMatch struct {
 type GRPCGatewayRouteAction struct {
 	// An object that represents the target that traffic is routed to when a request matches the route.
 	Target GatewayRouteTarget `json:"target"`
+	// +optional
+	Rewrite GatewayRouteRewriteHostname `json:"rewrite:omitempty"`
 }
 
 // GRPCGatewayRoute refers to https://docs.aws.amazon.com/app-mesh/latest/userguide/virtual_gateways.html
@@ -85,6 +87,10 @@ type HTTPGatewayRouteMatch struct {
 	// +kubebuilder:validation:MaxItems=10
 	// +optional
 	Headers []HTTPRouteHeader `json:"headers,omitempty"`
+	// +optional
+	Path HTTPPathMatch `json:"path,omitempty"`
+	// +optional
+	Query_Parameters HTTPQueryParameters `json:"query_parameters"`
 }
 
 // Hostname based match, either Exact or Suffix must be specified. Both are not allowed
@@ -99,8 +105,32 @@ type Hostname struct {
 
 // HTTPGatewayRouteAction refers to https://docs.aws.amazon.com/app-mesh/latest/userguide/virtual_gateways.html
 type HTTPGatewayRouteAction struct {
+	// +optional
+	Rewrite HTTPGatewayRouteRewrite `json:rewrite:omitempty`
 	// An object that represents the target that traffic is routed to when a request matches the route.
 	Target GatewayRouteTarget `json:"target"`
+}
+
+type HTTPGatewayRouteRewrite struct {
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=255
+	// +optional
+	Prefix *string `json:"prefix"`
+	// +optional
+	Path GatewayRouteRewritePath `json:"path,omitempty"`
+
+	//+optional
+	Hostname GatewayRouteRewriteHostname `josn:"hostname:omitempty"`
+}
+
+type GatewayRouteRewriteHostname struct {
+}
+
+type GatewayRouteRewritePath struct {
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=255
+	// +optional
+	Exact *string `json:"exact,omitempty"`
 }
 
 // HTTPGatewayRoute refers to https://docs.aws.amazon.com/app-mesh/latest/userguide/virtual_gateways.html
